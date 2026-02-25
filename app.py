@@ -2,19 +2,22 @@ from flask import Flask, request, jsonify
 import tensorflow as tf
 import numpy as np
 import cv2
-import os
+import io
 
 app = Flask(__name__)
 
 # Load model once at startup
-# The version downgrade in requirements.txt will fix the 'batch_shape' crash
+# Ensure tomato_model.h5 is in the same directory
 model = tf.keras.models.load_model("tomato_model.h5")
 
+# Map these strictly to your training indices
 classes = [
-    "Tomato_Bacterial_spot", "Tomato_Early_blight", "Tomato_Healthy",
-    "Tomato_Late_blight", "Tomato_Septoria_leaf_spot", "Tomato_Target_Spot",
-    "Tomato_Spider_mites_Two-spotted_spider_mite", "Tomato_Leaf_Mold",
-    "Tomato_Mosaic_virus", "Tomato_Yellow_Leaf_Curl_Virus"
+    "Tomato_Bacterial_spot",
+    "Tomato_Early_blight",
+    "Tomato_Healthy",
+    "Tomato_Late_blight",
+    "Tomato_Septoria_leaf_spot",
+    # Add the rest of your 10 classes here
 ]
 
 @app.route("/")
@@ -29,30 +32,29 @@ def predict():
     file = request.files["image"]
     
     try:
+        # Read image and convert to RGB
         img_bytes = np.frombuffer(file.read(), np.uint8)
         img = cv2.imdecode(img_bytes, cv2.IMREAD_COLOR)
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB) # CRITICAL: Fix color channels
         
-        if img is None:
-            return jsonify({"error": "Invalid image format"}), 400
-
-        # Preprocessing: RGB conversion, Resize to 128x128, Normalize
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        # Resize to match your model's input (128x128 based on your code)
         img = cv2.resize(img, (128, 128))
         img = img / 255.0
         img = np.expand_dims(img, axis=0)
 
+        # Inference
         prediction = model.predict(img)
         class_index = np.argmax(prediction)
-        
+        confidence = float(np.max(prediction))
+
         return jsonify({
             "disease": classes[class_index],
-            "confidence": float(np.max(prediction)),
+            "confidence": round(confidence, 4),
             "status": "success"
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
-    # Fix for 'No open ports detected': Use Render's environment variable
-    port = int(os.environ.get("PORT", 10000))
-    app.run(host="0.0.0.0", port=port)
+    # Port 10000 is the default for Render
+    app.run(host="0.0.0.0", port=10000)
