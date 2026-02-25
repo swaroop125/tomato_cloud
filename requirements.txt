@@ -1,5 +1,5 @@
-flask
-tensorflow-cpu==2.15.0
-opencv-python-headless
-numpy<2.0.0
-gunicorn
+flask==3.0.3
+tensorflow==2.15.0
+numpy==1.26.4
+opencv-python-headless==4.9.0.80
+gunicorn==22.0.0
